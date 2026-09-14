@@ -1,4 +1,5 @@
 import asyncio
+import ssl
 from logging.config import fileConfig
 
 from sqlalchemy import pool
@@ -49,9 +50,24 @@ def do_run_migrations(connection):
 
 async def run_migrations_online() -> None:
     """Run migrations in 'online' mode using an async engine."""
+    # 1. Neon DB URLs handle karna (postgresql:// ko postgresql+asyncpg:// mein badalna)
+    url = settings.DATABASE_URL
+    if url and url.startswith("postgresql://"):
+        url = url.replace("postgresql://", "postgresql+asyncpg://", 1)
+
+    # 2. Production/Neon cloud DB ke liye SSL context setup karna
+    connect_args = {}
+    if url and "localhost" not in url and "127.0.0.1" not in url:
+        ctx = ssl.create_default_context()
+        ctx.check_hostname = False
+        ctx.verify_mode = ssl.CERT_NONE
+        connect_args["ssl"] = ctx
+
+    # 3. Async engine banana updated URL aur SSL parameters ke sath
     connectable = create_async_engine(
-        settings.DATABASE_URL,
+        url,
         poolclass=pool.NullPool,
+        connect_args=connect_args,
     )
 
     async with connectable.connect() as connection:
