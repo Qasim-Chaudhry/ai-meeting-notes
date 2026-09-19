@@ -55,7 +55,11 @@ async def run_migrations_online() -> None:
     if url and url.startswith("postgresql://"):
         url = url.replace("postgresql://", "postgresql+asyncpg://", 1)
 
-    # 2. Production/Neon cloud DB ke liye SSL context setup karna
+    # 2. Query params (sslmode, channel_binding) hatana — asyncpg inhe samajhta nahi
+    if url and "?" in url:
+        url = url.split("?")[0]
+
+    # 3. Production/Neon cloud DB ke liye SSL context setup karna
     connect_args = {}
     if url and "localhost" not in url and "127.0.0.1" not in url:
         ctx = ssl.create_default_context()
@@ -63,7 +67,7 @@ async def run_migrations_online() -> None:
         ctx.verify_mode = ssl.CERT_NONE
         connect_args["ssl"] = ctx
 
-    # 3. Async engine banana updated URL aur SSL parameters ke sath
+    # 4. Async engine banana updated URL aur SSL parameters ke sath
     connectable = create_async_engine(
         url,
         poolclass=pool.NullPool,
